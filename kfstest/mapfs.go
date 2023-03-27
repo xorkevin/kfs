@@ -10,17 +10,15 @@ import (
 	"time"
 
 	"xorkevin.dev/kerrors"
-	"xorkevin.dev/kfs/symlinkfs"
-	"xorkevin.dev/kfs/writefs"
+	"xorkevin.dev/kfs"
 )
 
-// MapFS is an in-memory:
-//
-//   - [writefs.WriteFS]
-//   - [symlinkfs.SymlinkFS]
-type MapFS struct {
-	Fsys fstest.MapFS
-}
+type (
+	// MapFS is an in-memory [kfs.FS]
+	MapFS struct {
+		Fsys fstest.MapFS
+	}
+)
 
 const (
 	rwFlagMask = os.O_RDONLY | os.O_WRONLY | os.O_RDWR
@@ -71,7 +69,7 @@ func (m *MapFS) Sub(dir string) (fs.FS, error) {
 	}, nil
 }
 
-func (m *MapFS) OpenFile(name string, flag int, mode fs.FileMode) (writefs.File, error) {
+func (m *MapFS) OpenFile(name string, flag int, mode fs.FileMode) (kfs.File, error) {
 	if !fs.ValidPath(name) {
 		return nil, &fs.PathError{
 			Op:   "openfile",
@@ -215,14 +213,14 @@ func (m *MapFS) ReadLink(name string) (string, error) {
 				return "", &fs.PathError{
 					Op:   "readlink",
 					Path: name,
-					Err:  kerrors.WithMsg(symlinkfs.ErrTargetOutsideFS, fmt.Sprintf("Target %s is absolute", target)),
+					Err:  kerrors.WithMsg(kfs.ErrTargetOutsideFS, fmt.Sprintf("Target %s is absolute", target)),
 				}
 			}
 			if !fs.ValidPath(path.Join(path.Dir(name), target)) {
 				return "", &fs.PathError{
 					Op:   "readlink",
 					Path: name,
-					Err:  kerrors.WithMsg(symlinkfs.ErrTargetOutsideFS, fmt.Sprintf("Target %s is outside the FS", target)),
+					Err:  kerrors.WithMsg(kfs.ErrTargetOutsideFS, fmt.Sprintf("Target %s is outside the FS", target)),
 				}
 			}
 			return target, nil
@@ -276,7 +274,7 @@ func (f *subdirFS) Sub(dir string) (fs.FS, error) {
 	}, nil
 }
 
-func (f *subdirFS) OpenFile(name string, flag int, mode fs.FileMode) (writefs.File, error) {
+func (f *subdirFS) OpenFile(name string, flag int, mode fs.FileMode) (kfs.File, error) {
 	if !fs.ValidPath(name) {
 		return nil, &fs.PathError{
 			Op:   "openfile",

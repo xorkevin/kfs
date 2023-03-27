@@ -1,4 +1,4 @@
-package writefs_test
+package kfs_test
 
 import (
 	"io/fs"
@@ -7,8 +7,8 @@ import (
 	"testing/fstest"
 
 	"github.com/stretchr/testify/require"
+	"xorkevin.dev/kfs"
 	"xorkevin.dev/kfs/kfstest"
-	"xorkevin.dev/kfs/writefs"
 )
 
 func Test_WriteFS(t *testing.T) {
@@ -33,9 +33,9 @@ func Test_WriteFS(t *testing.T) {
 		},
 	}
 
-	fsys := writefs.New(os.DirFS(tempDir), tempDir)
+	fsys := kfs.New(os.DirFS(tempDir), tempDir)
 
-	assert.NoError(writefs.WriteFile(fsys, "foo.txt", []byte("hello, world"), 0o644))
+	assert.NoError(kfs.WriteFile(fsys, "foo.txt", []byte("hello, world"), 0o644))
 	assert.NoError(kfstest.TestFileWrite(fsys, "bar/foobar.txt", []byte("foo bar")))
 	subFsys, err := fs.Sub(fsys, "other")
 	assert.NoError(err)

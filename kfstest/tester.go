@@ -12,7 +12,7 @@ import (
 	"strings"
 
 	"xorkevin.dev/kerrors"
-	"xorkevin.dev/kfs/writefs"
+	"xorkevin.dev/kfs"
 )
 
 // TestFileOpen tests reading a file using Open
@@ -169,10 +169,10 @@ func TestFS(fsys fs.FS, files ...TestFSFile) error {
 	return nil
 }
 
-// TestFileWrite tests writing a file with [writefs.OpenFile]
+// TestFileWrite tests writing a file with [kfs.OpenFile]
 func TestFileWrite(fsys fs.FS, name string, data []byte) error {
 	if err := func() (retErr error) {
-		f, err := writefs.OpenFile(fsys, name, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o644)
+		f, err := kfs.OpenFile(fsys, name, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o644)
 		if err != nil {
 			return kerrors.WithMsg(err, fmt.Sprintf("Failed to open file %s for writing", name))
 		}
@@ -196,7 +196,7 @@ func TestFileWrite(fsys fs.FS, name string, data []byte) error {
 		return err
 	}
 	if err := func() (retErr error) {
-		f, err := writefs.OpenFile(fsys, name, os.O_RDONLY, 0)
+		f, err := kfs.OpenFile(fsys, name, os.O_RDONLY, 0)
 		if err != nil {
 			return kerrors.WithMsg(err, fmt.Sprintf("Failed to open file %s for writing", name))
 		}
@@ -239,14 +239,14 @@ func TestFileWrite(fsys fs.FS, name string, data []byte) error {
 	return nil
 }
 
-// TestFileAppend tests appending to a file with [writefs.OpenFile]
+// TestFileAppend tests appending to a file with [kfs.OpenFile]
 func TestFileAppend(fsys fs.FS, name string, data []byte) error {
 	orig, err := fs.ReadFile(fsys, name)
 	if err != nil {
 		return kerrors.WithMsg(err, fmt.Sprintf("Failed to read file %s", name))
 	}
 	if err := func() (retErr error) {
-		f, err := writefs.OpenFile(fsys, name, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0o644)
+		f, err := kfs.OpenFile(fsys, name, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0o644)
 		if err != nil {
 			return kerrors.WithMsg(err, fmt.Sprintf("Failed to open file %s for writing", name))
 		}
