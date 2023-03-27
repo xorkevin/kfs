@@ -3,6 +3,7 @@ package kfs_test
 import (
 	"io/fs"
 	"os"
+	"path"
 	"testing"
 	"testing/fstest"
 
@@ -11,7 +12,7 @@ import (
 	"xorkevin.dev/kfs/kfstest"
 )
 
-func Test_WriteFS(t *testing.T) {
+func Test_FS(t *testing.T) {
 	t.Parallel()
 
 	assert := require.New(t)
@@ -50,4 +51,18 @@ func Test_WriteFS(t *testing.T) {
 	assert.NoError(kfstest.TestFS(fsys, testFiles...))
 
 	assert.NoError(kfstest.TestFileAppend(subFsys, "subother/subother.txt", []byte("more")))
+
+	assert.NoError(os.Symlink("subother/subother.txt", path.Join(tempDir, "other/link.txt")))
+
+	{
+		info, err := kfs.Lstat(subFsys, "link.txt")
+		assert.NoError(err)
+		assert.True(info.Mode().Type()&fs.ModeSymlink != 0)
+		target, err := kfs.ReadLink(subFsys, "link.txt")
+		assert.NoError(err)
+		assert.Equal("subother/subother.txt", target)
+		content, err := fs.ReadFile(subFsys, "link.txt")
+		assert.NoError(err)
+		assert.Equal([]byte("subothermore"), content)
+	}
 }

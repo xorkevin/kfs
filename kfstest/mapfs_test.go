@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"xorkevin.dev/kfs"
 )
 
 func Test_MapFS(t *testing.T) {
@@ -49,9 +50,24 @@ func Test_MapFS(t *testing.T) {
 	assert.NoError(TestFS(fsys, testFiles...))
 
 	assert.NoError(TestFileWrite(fsys, "other/other.txt", []byte("other")))
-	subFsys, err := fs.Sub(fsys, "bar")
+	subFsys, err := fs.Sub(fsys, "other")
 	assert.NoError(err)
 	assert.NoError(TestFileWrite(subFsys, "subother/subother.txt", []byte("subother")))
 	subsubFsys, err := fs.Sub(subFsys, "subother")
 	assert.NoError(TestFileAppend(subsubFsys, "subother.txt", []byte("more")))
+
+	fsys.Fsys["other/link.txt"] = &fstest.MapFile{
+		Data:    []byte("subother/subother.txt"),
+		Mode:    0o777 | fs.ModeSymlink,
+		ModTime: now,
+	}
+
+	{
+		info, err := kfs.Lstat(subFsys, "link.txt")
+		assert.NoError(err)
+		assert.True(info.Mode().Type()&fs.ModeSymlink != 0)
+		target, err := kfs.ReadLink(subFsys, "link.txt")
+		assert.NoError(err)
+		assert.Equal("subother/subother.txt", target)
+	}
 }
