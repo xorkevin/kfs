@@ -22,6 +22,7 @@ func (e errNotImplemented) Error() string {
 }
 
 type (
+	// File is an [fs.File] that allows writing
 	File interface {
 		fs.File
 		io.Writer
@@ -46,7 +47,7 @@ type (
 func OpenFile(fsys fs.FS, name string, flag int, mode fs.FileMode) (File, error) {
 	rl, ok := fsys.(WriteFS)
 	if !ok {
-		return nil, &fs.PathError{Op: "openfile", Path: name, Err: ErrNotImplemented}
+		return nil, &fs.PathError{Op: "openfile", Path: name, Err: kerrors.WithMsg(ErrNotImplemented, "Failed to open file")}
 	}
 	return rl.OpenFile(name, flag, mode)
 }
@@ -66,7 +67,7 @@ func WriteFile(fsys fs.FS, name string, data []byte, perm fs.FileMode) (retErr e
 	}()
 	_, err = f.Write(data)
 	if err != nil {
-		return kerrors.WithMsg(err, "Failed writing to file")
+		return &fs.PathError{Op: "openfile", Path: name, Err: kerrors.WithMsg(err, "Failed writing to file")}
 	}
 	return nil
 }
@@ -120,6 +121,7 @@ func (f *writeFS) OpenFile(name string, flag int, mode fs.FileMode) (File, error
 	return fi, nil
 }
 
+// New creates a new [WriteFS]
 func New(fsys fs.FS, dir string) WriteFS {
 	return &writeFS{
 		fsys: fsys,
