@@ -11,7 +11,9 @@ import (
 )
 
 var (
-	ErrNotImplemented  errNotImplemented
+	// ErrNotImplemented is returned when the file system does not implement [LstatFS] or [ReadLinkFS]
+	ErrNotImplemented errNotImplemented
+	// ErrTargetOutsideFS is returned when the symlink target is outside the file system
 	ErrTargetOutsideFS errTargetOutsideFS
 )
 
@@ -45,7 +47,11 @@ type (
 func Lstat(fsys fs.FS, name string) (fs.FileInfo, error) {
 	rl, ok := fsys.(LstatFS)
 	if !ok {
-		return nil, &fs.PathError{Op: "lstat", Path: name, Err: kerrors.WithMsg(ErrNotImplemented, "Failed to lstat file")}
+		return nil, &fs.PathError{
+			Op:   "lstat",
+			Path: name,
+			Err:  kerrors.WithMsg(ErrNotImplemented, "Failed to lstat file"),
+		}
 	}
 	return rl.Lstat(name)
 }
@@ -67,7 +73,11 @@ type (
 func ReadLink(fsys fs.FS, name string) (string, error) {
 	rl, ok := fsys.(ReadLinkFS)
 	if !ok {
-		return "", &fs.PathError{Op: "readlink", Path: name, Err: kerrors.WithMsg(ErrNotImplemented, "Failed to readlink")}
+		return "", &fs.PathError{
+			Op:   "readlink",
+			Path: name,
+			Err:  kerrors.WithMsg(ErrNotImplemented, "Failed to read link"),
+		}
 	}
 	return rl.ReadLink(name)
 }
@@ -113,34 +123,59 @@ func (f *symlinkFS) fullFilePath(name string) string {
 
 func (f *symlinkFS) Lstat(name string) (fs.FileInfo, error) {
 	if !fs.ValidPath(name) {
-		return nil, &fs.PathError{Op: "lstat", Path: name, Err: fs.ErrInvalid}
+		return nil, &fs.PathError{
+			Op:   "lstat",
+			Path: name,
+			Err:  kerrors.WithMsg(fs.ErrInvalid, "Invalid path"),
+		}
 	}
 	info, err := os.Lstat(f.fullFilePath(name))
 	if err != nil {
-		return nil, &fs.PathError{Op: "lstat", Path: name, Err: err}
+		return nil, &fs.PathError{
+			Op:   "lstat",
+			Path: name,
+			Err:  kerrors.WithMsg(err, "Failed to lstat file"),
+		}
 	}
 	return info, nil
 }
 
 func (f *symlinkFS) ReadLink(name string) (string, error) {
 	if !fs.ValidPath(name) {
-		return "", &fs.PathError{Op: "readlink", Path: name, Err: fs.ErrInvalid}
+		return "", &fs.PathError{
+			Op:   "readlink",
+			Path: name,
+			Err:  kerrors.WithMsg(fs.ErrInvalid, "Invalid path"),
+		}
 	}
 	target, err := os.Readlink(f.fullFilePath(name))
 	if err != nil {
-		return "", err
+		return "", &fs.PathError{
+			Op:   "readlink",
+			Path: name,
+			Err:  kerrors.WithMsg(err, "Failed to read link"),
+		}
 	}
 	target = filepath.ToSlash(target)
 	if path.IsAbs(target) {
-		return "", &fs.PathError{Op: "readlink", Path: name, Err: kerrors.WithMsg(ErrTargetOutsideFS, fmt.Sprintf("Target %s is absolute", target))}
+		return "", &fs.PathError{
+			Op:   "readlink",
+			Path: name,
+			Err:  kerrors.WithMsg(ErrTargetOutsideFS, fmt.Sprintf("Target %s is absolute", target)),
+		}
 	}
 	if !fs.ValidPath(path.Join(path.Dir(name), target)) {
-		return "", &fs.PathError{Op: "readlink", Path: name, Err: kerrors.WithMsg(ErrTargetOutsideFS, fmt.Sprintf("Target %s is outside the FS", target))}
+		return "", &fs.PathError{
+			Op:   "readlink",
+			Path: name,
+			Err:  kerrors.WithMsg(ErrTargetOutsideFS, fmt.Sprintf("Target %s is outside the FS", target)),
+		}
 	}
 	return target, nil
 }
 
 type (
+	// SymlinkFS is an [LstatFS] and [ReadLinkFS]
 	SymlinkFS interface {
 		LstatFS
 		ReadLinkFS

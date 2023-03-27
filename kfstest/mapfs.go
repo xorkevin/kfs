@@ -184,6 +184,16 @@ func (m *MapFS) OpenFile(name string, flag int, mode fs.FileMode) (writefs.File,
 	}, nil
 }
 
+func (m *MapFS) Lstat(name string) (fs.FileInfo, error) {
+	// TODO
+	return nil, nil
+}
+
+func (m *MapFS) ReadLink(name string) (string, error) {
+	// TODO
+	return "", nil
+}
+
 type (
 	subdirFS struct {
 		m    *MapFS
@@ -233,6 +243,28 @@ func (f *subdirFS) OpenFile(name string, flag int, mode fs.FileMode) (writefs.Fi
 		}
 	}
 	return f.m.OpenFile(path.Join(f.dir, name), flag, mode)
+}
+
+func (f *subdirFS) Lstat(name string) (fs.FileInfo, error) {
+	if !fs.ValidPath(name) {
+		return nil, &fs.PathError{
+			Op:   "lstat",
+			Path: name,
+			Err:  kerrors.WithMsg(fs.ErrInvalid, "Invalid path"),
+		}
+	}
+	return f.m.Lstat(path.Join(f.dir, name))
+}
+
+func (f *subdirFS) ReadLink(name string) (string, error) {
+	if !fs.ValidPath(name) {
+		return "", &fs.PathError{
+			Op:   "readlink",
+			Path: name,
+			Err:  kerrors.WithMsg(fs.ErrInvalid, "Invalid path"),
+		}
+	}
+	return f.m.ReadLink(path.Join(f.dir, name))
 }
 
 type (

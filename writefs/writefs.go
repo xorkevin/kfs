@@ -11,6 +11,7 @@ import (
 	"xorkevin.dev/kerrors"
 )
 
+// ErrNotImplemented is returned when the file system does not implement [WriteFS]
 var ErrNotImplemented errNotImplemented
 
 type (
