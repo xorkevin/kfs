@@ -12,12 +12,13 @@ import (
 	"xorkevin.dev/kfs/writefs"
 )
 
-type (
-	// MapFS is an in memory [writefs.WriteFS]
-	MapFS struct {
-		Fsys fstest.MapFS
-	}
-)
+// MapFS is an in-memory:
+//
+//   - [writefs.WriteFS]
+//   - [symlinkfs.SymlinkFS]
+type MapFS struct {
+	Fsys fstest.MapFS
+}
 
 const (
 	rwFlagMask = os.O_RDONLY | os.O_WRONLY | os.O_RDWR
@@ -70,7 +71,11 @@ func (m *MapFS) Sub(dir string) (fs.FS, error) {
 
 func (m *MapFS) OpenFile(name string, flag int, mode fs.FileMode) (writefs.File, error) {
 	if !fs.ValidPath(name) {
-		return nil, &fs.PathError{Op: "openfile", Path: name, Err: kerrors.WithMsg(fs.ErrInvalid, "Invalid path")}
+		return nil, &fs.PathError{
+			Op:   "openfile",
+			Path: name,
+			Err:  kerrors.WithMsg(fs.ErrInvalid, "Invalid path"),
+		}
 	}
 
 	isRead, isWrite := isReadWrite(flag)
@@ -221,7 +226,11 @@ func (f *subdirFS) Sub(dir string) (fs.FS, error) {
 
 func (f *subdirFS) OpenFile(name string, flag int, mode fs.FileMode) (writefs.File, error) {
 	if !fs.ValidPath(name) {
-		return nil, &fs.PathError{Op: "openfile", Path: name, Err: fs.ErrInvalid}
+		return nil, &fs.PathError{
+			Op:   "openfile",
+			Path: name,
+			Err:  kerrors.WithMsg(fs.ErrInvalid, "Invalid path"),
+		}
 	}
 	return f.m.OpenFile(path.Join(f.dir, name), flag, mode)
 }
@@ -247,14 +256,22 @@ func (f *mapFile) Stat() (fs.FileInfo, error) {
 
 func (f *mapFile) Read(p []byte) (int, error) {
 	if f.r == nil {
-		return 0, &fs.PathError{Op: "read", Path: f.path, Err: fs.ErrInvalid}
+		return 0, &fs.PathError{
+			Op:   "read",
+			Path: f.path,
+			Err:  kerrors.WithMsg(fs.ErrInvalid, "File not open for reading"),
+		}
 	}
 	return f.r.Read(p)
 }
 
 func (f *mapFile) Write(p []byte) (int, error) {
 	if f.b == nil {
-		return 0, &fs.PathError{Op: "write", Path: f.path, Err: fs.ErrInvalid}
+		return 0, &fs.PathError{
+			Op:   "write",
+			Path: f.path,
+			Err:  kerrors.WithMsg(fs.ErrInvalid, "File not open for writing"),
+		}
 	}
 	return f.b.Write(p)
 }
