@@ -2,6 +2,7 @@ package kfstest
 
 import (
 	"bytes"
+	"fmt"
 	"io/fs"
 	"os"
 	"path"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"xorkevin.dev/kerrors"
+	"xorkevin.dev/kfs/symlinkfs"
 	"xorkevin.dev/kfs/writefs"
 )
 
@@ -185,13 +187,53 @@ func (m *MapFS) OpenFile(name string, flag int, mode fs.FileMode) (writefs.File,
 }
 
 func (m *MapFS) Lstat(name string) (fs.FileInfo, error) {
-	// TODO
-	return nil, nil
+	if !fs.ValidPath(name) {
+		return nil, &fs.PathError{
+			Op:   "lstat",
+			Path: name,
+			Err:  kerrors.WithMsg(fs.ErrInvalid, "Invalid path"),
+		}
+	}
+
+	// fs.MapFS does not follow symlinks
+	return fs.Stat(m.Fsys, name)
 }
 
 func (m *MapFS) ReadLink(name string) (string, error) {
-	// TODO
-	return "", nil
+	if !fs.ValidPath(name) {
+		return "", &fs.PathError{
+			Op:   "readlink",
+			Path: name,
+			Err:  kerrors.WithMsg(fs.ErrInvalid, "Invalid path"),
+		}
+	}
+
+	if f, ok := m.Fsys[name]; ok {
+		if f.Mode.Type()&fs.ModeSymlink != 0 {
+			target := string(f.Data)
+			if path.IsAbs(target) {
+				return "", &fs.PathError{
+					Op:   "readlink",
+					Path: name,
+					Err:  kerrors.WithMsg(symlinkfs.ErrTargetOutsideFS, fmt.Sprintf("Target %s is absolute", target)),
+				}
+			}
+			if !fs.ValidPath(path.Join(path.Dir(name), target)) {
+				return "", &fs.PathError{
+					Op:   "readlink",
+					Path: name,
+					Err:  kerrors.WithMsg(symlinkfs.ErrTargetOutsideFS, fmt.Sprintf("Target %s is outside the FS", target)),
+				}
+			}
+			return target, nil
+		}
+	}
+
+	return "", &fs.PathError{
+		Op:   "readlink",
+		Path: name,
+		Err:  kerrors.WithMsg(fs.ErrInvalid, "File is not a link"),
+	}
 }
 
 type (

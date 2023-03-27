@@ -1,4 +1,4 @@
-package symlinkfs
+package symlinkfs_test
 
 import (
 	"os"
@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"xorkevin.dev/kfs/kfstest"
+	"xorkevin.dev/kfs/symlinkfs"
 )
 
 func Test_SymlinkFS(t *testing.T) {
@@ -37,7 +38,7 @@ func Test_SymlinkFS(t *testing.T) {
 		assert.NoError(os.WriteFile(fullPath, i.Data, 0o644))
 	}
 
-	fsys := New(os.DirFS(tempDir), tempDir)
+	fsys := symlinkfs.New(os.DirFS(tempDir), tempDir)
 
 	fileNames := make([]string, 0, len(testFiles))
 	for _, i := range testFiles {
