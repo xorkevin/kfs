@@ -1,15 +1,12 @@
 package kfstest
 
 import (
-	"io"
 	"io/fs"
-	"os"
 	"testing"
 	"testing/fstest"
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"xorkevin.dev/kfs/writefs"
 )
 
 func Test_MapFS(t *testing.T) {
@@ -51,36 +48,10 @@ func Test_MapFS(t *testing.T) {
 
 	assert.NoError(TestFS(fsys, testFiles...))
 
-	{
-		assert.NoError(writefs.WriteFile(fsys, "other/other.txt", []byte("other"), 0o644))
-		b, err := fs.ReadFile(fsys, "other/other.txt")
-		assert.NoError(err)
-		assert.Equal([]byte("other"), b)
-	}
-
+	assert.NoError(TestFileWrite(fsys, "other/other.txt", []byte("other")))
 	subFsys, err := fs.Sub(fsys, "bar")
 	assert.NoError(err)
-
-	{
-		assert.NoError(writefs.WriteFile(subFsys, "subother/subother.txt", []byte("subother"), 0o644))
-		subsubFsys, err := fs.Sub(subFsys, "subother")
-		assert.NoError(err)
-		b, err := fs.ReadFile(subsubFsys, "subother.txt")
-		assert.NoError(err)
-		assert.Equal([]byte("subother"), b)
-
-		func() {
-			f, err := writefs.OpenFile(subsubFsys, "subother.txt", os.O_RDONLY, 0)
-			assert.NoError(err)
-			defer func() {
-				assert.NoError(f.Close())
-			}()
-			info, err := f.Stat()
-			assert.NoError(err)
-			assert.Equal("subother.txt", info.Name())
-			content, err := io.ReadAll(f)
-			assert.NoError(err)
-			assert.Equal([]byte("subother"), content)
-		}()
-	}
+	assert.NoError(TestFileWrite(subFsys, "subother/subother.txt", []byte("subother")))
+	subsubFsys, err := fs.Sub(subFsys, "subother")
+	assert.NoError(TestFileAppend(subsubFsys, "subother.txt", []byte("more")))
 }

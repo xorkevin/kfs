@@ -283,22 +283,14 @@ func (i *mapFileInfo) Mode() fs.FileMode {
 	return i.f.Mode
 }
 
-func (i *mapFileInfo) Type() fs.FileMode {
-	return i.f.Mode.Type()
-}
-
 func (i *mapFileInfo) ModTime() time.Time {
 	return i.f.ModTime
 }
 
 func (i *mapFileInfo) IsDir() bool {
-	return i.f.Mode&fs.ModeDir != 0
+	return i.f.Mode.IsDir()
 }
 
 func (i *mapFileInfo) Sys() any {
 	return i.f.Sys
-}
-
-func (i *mapFileInfo) Info() (fs.FileInfo, error) {
-	return i, nil
 }
