@@ -18,7 +18,7 @@ type (
 )
 
 func (e errNotImplemented) Error() string {
-	return "not implemented"
+	return "Not implemented"
 }
 
 type (

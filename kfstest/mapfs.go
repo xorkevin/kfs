@@ -8,6 +8,7 @@ import (
 	"testing/fstest"
 	"time"
 
+	"xorkevin.dev/kerrors"
 	"xorkevin.dev/kfs/writefs"
 )
 
@@ -69,34 +70,52 @@ func (m *MapFS) Sub(dir string) (fs.FS, error) {
 
 func (m *MapFS) OpenFile(name string, flag int, mode fs.FileMode) (writefs.File, error) {
 	if !fs.ValidPath(name) {
-		return nil, &fs.PathError{Op: "openfile", Path: name, Err: fs.ErrInvalid}
+		return nil, &fs.PathError{Op: "openfile", Path: name, Err: kerrors.WithMsg(fs.ErrInvalid, "Invalid path")}
 	}
 
 	isRead, isWrite := isReadWrite(flag)
 	if !isRead && !isWrite {
-		// must read or write
-		return nil, &fs.PathError{Op: "openfile", Path: name, Err: fs.ErrInvalid}
+		return nil, &fs.PathError{
+			Op:   "openfile",
+			Path: name,
+			Err:  kerrors.WithMsg(fs.ErrInvalid, "Must read or write"),
+		}
 	}
 	if isRead && isWrite {
 		// do not support both reading and writing for simplicity
-		return nil, &fs.PathError{Op: "openfile", Path: name, Err: fs.ErrInvalid}
+		return nil, &fs.PathError{
+			Op:   "openfile",
+			Path: name,
+			Err:  kerrors.WithMsg(fs.ErrInvalid, "Unimplemented"),
+		}
 	}
 
-	if flag&os.O_CREATE == 0 {
+	if flag&os.O_CREATE != 0 {
 		if !isWrite {
-			// disallow create when not writing
-			return nil, &fs.PathError{Op: "openfile", Path: name, Err: fs.ErrInvalid}
+			return nil, &fs.PathError{
+				Op:   "openfile",
+				Path: name,
+				Err:  kerrors.WithMsg(fs.ErrInvalid, "May not create when not writing"),
+			}
 		}
+	} else {
 		if flag&os.O_EXCL != 0 {
-			// disallow using excl when create not specified
-			return nil, &fs.PathError{Op: "openfile", Path: name, Err: fs.ErrInvalid}
+			return nil, &fs.PathError{
+				Op:   "openfile",
+				Path: name,
+				Err:  kerrors.WithMsg(fs.ErrInvalid, "May only use excl when creating"),
+			}
 		}
 	}
 
 	f := m.Fsys[name]
 	if f == nil {
 		if flag&os.O_CREATE == 0 {
-			return nil, &fs.PathError{Op: "openfile", Path: name, Err: fs.ErrNotExist}
+			return nil, &fs.PathError{
+				Op:   "openfile",
+				Path: name,
+				Err:  kerrors.WithMsg(fs.ErrNotExist, "File does not exist"),
+			}
 		}
 
 		f = &fstest.MapFile{
@@ -106,22 +125,32 @@ func (m *MapFS) OpenFile(name string, flag int, mode fs.FileMode) (writefs.File,
 		}
 	} else {
 		if flag&os.O_EXCL != 0 {
-			return nil, &fs.PathError{Op: "openfile", Path: name, Err: fs.ErrExist}
+			return nil, &fs.PathError{
+				Op:   "openfile",
+				Path: name,
+				Err:  kerrors.WithMsg(fs.ErrExist, "File already exists"),
+			}
 		}
 	}
 
 	if flag&os.O_TRUNC != 0 {
 		if !isWrite {
-			// disallow using trunc when not writing
-			return nil, &fs.PathError{Op: "openfile", Path: name, Err: fs.ErrInvalid}
+			return nil, &fs.PathError{
+				Op:   "openfile",
+				Path: name,
+				Err:  kerrors.WithMsg(fs.ErrInvalid, "May not truncate when not writing"),
+			}
 		}
 		f.Data = nil
 	}
 	end := false
 	if flag&os.O_APPEND != 0 {
 		if !isWrite {
-			// disallow using append when not writing
-			return nil, &fs.PathError{Op: "openfile", Path: name, Err: fs.ErrInvalid}
+			return nil, &fs.PathError{
+				Op:   "openfile",
+				Path: name,
+				Err:  kerrors.WithMsg(fs.ErrInvalid, "May not append when not writing"),
+			}
 		}
 		end = true
 	}

@@ -1,7 +1,9 @@
 package kfstest
 
 import (
+	"io"
 	"io/fs"
+	"os"
 	"testing"
 	"testing/fstest"
 	"time"
@@ -66,5 +68,19 @@ func Test_MapFS(t *testing.T) {
 		b, err := fs.ReadFile(subsubFsys, "subother.txt")
 		assert.NoError(err)
 		assert.Equal([]byte("subother"), b)
+
+		func() {
+			f, err := writefs.OpenFile(subsubFsys, "subother.txt", os.O_RDONLY, 0)
+			assert.NoError(err)
+			defer func() {
+				assert.NoError(f.Close())
+			}()
+			info, err := f.Stat()
+			assert.NoError(err)
+			assert.Equal("subother.txt", info.Name())
+			content, err := io.ReadAll(f)
+			assert.NoError(err)
+			assert.Equal([]byte("subother"), content)
+		}()
 	}
 }
