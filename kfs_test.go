@@ -85,4 +85,11 @@ func Test_FS(t *testing.T) {
 		_, err := fs.ReadFile(fsys, ".git")
 		assert.ErrorIs(err, kfs.ErrFileMasked)
 	}
+	{
+		roFS := kfs.NewReadOnlyFS(fsys)
+		assert.ErrorIs(
+			kfs.WriteFile(roFS, "shouldfailwriting", []byte("should fail writing"), 0o644),
+			kfs.ErrReadOnly,
+		)
+	}
 }
