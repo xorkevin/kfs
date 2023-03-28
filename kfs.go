@@ -246,6 +246,12 @@ func (f *osFS) OpenFile(name string, flag int, mode fs.FileMode) (File, error) {
 type (
 	// FS implements all the file system operations
 	FS interface {
+		fs.FS
+		fs.StatFS
+		fs.ReadDirFS
+		fs.ReadFileFS
+		fs.GlobFS
+		fs.SubFS
 		LstatFS
 		ReadLinkFS
 		WriteFS
