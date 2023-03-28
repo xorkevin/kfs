@@ -58,38 +58,42 @@ func Test_FS(t *testing.T) {
 
 	assert.NoError(kfstest.TestFS(fsys, testFiles...))
 
+	{
+		// test read-only fs
+		roFS := kfs.NewReadOnlyFS(fsys)
+		assert.NoError(kfstest.TestFS(roFS, testFiles...))
+		assert.ErrorIs(
+			kfs.WriteFile(roFS, "shouldfailwriting", []byte("should fail writing"), 0o644),
+			kfs.ErrReadOnly,
+		)
+	}
+
 	assert.NoError(kfstest.TestFileAppend(subFsys, "subother/subother.txt", []byte("more")))
 
 	assert.NoError(os.Symlink("subother/subother.txt", path.Join(tempDir, "other/link.txt")))
 
 	{
-		info, err := kfs.Lstat(subFsys, "link.txt")
+		// test lstat
+		roFS := kfs.NewReadOnlyFS(subFsys)
+		info, err := kfs.Lstat(roFS, "link.txt")
 		assert.NoError(err)
 		assert.True(info.Mode().Type()&fs.ModeSymlink != 0)
-		target, err := kfs.ReadLink(subFsys, "link.txt")
+		target, err := kfs.ReadLink(roFS, "link.txt")
 		assert.NoError(err)
 		assert.Equal("subother/subother.txt", target)
-		content, err := fs.ReadFile(subFsys, "link.txt")
+		content, err := fs.ReadFile(roFS, "link.txt")
 		assert.NoError(err)
 		assert.Equal([]byte("subothermore"), content)
 	}
 
 	{
+		// test mask
 		entries, err := fs.ReadDir(fsys, ".")
 		assert.NoError(err)
 		for _, i := range entries {
 			assert.NotEqual(".git", i.Name())
 		}
-	}
-	{
-		_, err := fs.ReadFile(fsys, ".git")
+		_, err = fs.ReadFile(fsys, ".git")
 		assert.ErrorIs(err, kfs.ErrFileMasked)
-	}
-	{
-		roFS := kfs.NewReadOnlyFS(fsys)
-		assert.ErrorIs(
-			kfs.WriteFile(roFS, "shouldfailwriting", []byte("should fail writing"), 0o644),
-			kfs.ErrReadOnly,
-		)
 	}
 }
