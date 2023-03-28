@@ -4,8 +4,9 @@ import (
 	"io/fs"
 	"os"
 	"path"
+	"path/filepath"
+	"regexp"
 	"testing"
-	"testing/fstest"
 
 	"github.com/stretchr/testify/require"
 	"xorkevin.dev/kfs"
@@ -16,6 +17,13 @@ func Test_FS(t *testing.T) {
 	t.Parallel()
 
 	assert := require.New(t)
+
+	gitFileRegex, err := regexp.Compile(`^(?:.*/)?\.git(?:/.*)?$`)
+	assert.NoError(err)
+
+	testGitFileFilter := func(p string) (bool, error) {
+		return !gitFileRegex.MatchString(p), nil
+	}
 
 	tempDir := t.TempDir()
 
@@ -34,19 +42,19 @@ func Test_FS(t *testing.T) {
 		},
 	}
 
-	fsys := kfs.New(os.DirFS(tempDir), tempDir)
+	{
+		hiddenFilePath := filepath.Join(filepath.FromSlash(tempDir), filepath.FromSlash(".git/hidden.txt"))
+		assert.NoError(os.MkdirAll(filepath.Dir(hiddenFilePath), 0o777))
+		assert.NoError(os.WriteFile(hiddenFilePath, []byte("hidden file data"), 0o644))
+	}
+
+	fsys := kfs.NewMaskFS(kfs.New(os.DirFS(tempDir), tempDir), testGitFileFilter)
 
 	assert.NoError(kfs.WriteFile(fsys, "foo.txt", []byte("hello, world"), 0o644))
 	assert.NoError(kfstest.TestFileWrite(fsys, "bar/foobar.txt", []byte("foo bar")))
 	subFsys, err := fs.Sub(fsys, "other")
 	assert.NoError(err)
 	assert.NoError(kfstest.TestFileWrite(subFsys, "subother/subother.txt", []byte("subother")))
-
-	fileNames := make([]string, 0, len(testFiles))
-	for _, i := range testFiles {
-		fileNames = append(fileNames, i.Name)
-	}
-	assert.NoError(fstest.TestFS(fsys, fileNames...))
 
 	assert.NoError(kfstest.TestFS(fsys, testFiles...))
 
@@ -64,5 +72,17 @@ func Test_FS(t *testing.T) {
 		content, err := fs.ReadFile(subFsys, "link.txt")
 		assert.NoError(err)
 		assert.Equal([]byte("subothermore"), content)
+	}
+
+	{
+		entries, err := fs.ReadDir(fsys, ".")
+		assert.NoError(err)
+		for _, i := range entries {
+			assert.NotEqual(".git", i.Name())
+		}
+	}
+	{
+		_, err := fs.ReadFile(fsys, ".git")
+		assert.ErrorIs(err, kfs.ErrFileMasked)
 	}
 }

@@ -1,7 +1,6 @@
 package kfs
 
 import (
-	"errors"
 	"io/fs"
 	"path"
 
@@ -21,7 +20,7 @@ func (e errFileMasked) Error() string {
 
 type (
 	// FileFilter filters files by file path and dir entry
-	FileFilter = func(p string, entry fs.DirEntry) (bool, error)
+	FileFilter = func(p string) (bool, error)
 
 	maskFS struct {
 		fsys   fs.FS
@@ -30,92 +29,61 @@ type (
 	}
 )
 
-func (f *maskFS) checkFileStat(op string, name string) (fs.FileInfo, error) {
+func (f *maskFS) checkFile(op string, name string) error {
 	if !fs.ValidPath(name) {
-		return nil, &fs.PathError{
+		return &fs.PathError{
 			Op:   op,
 			Path: name,
 			Err:  kerrors.WithMsg(fs.ErrInvalid, "Invalid path"),
 		}
 	}
-	info, err := fs.Stat(f.fsys, name)
+	ok, err := f.filter(path.Join(f.dir, name))
 	if err != nil {
-		return nil, err
-	}
-	ok, err := f.filter(path.Join(f.dir, name), fs.FileInfoToDirEntry(info))
-	if err != nil {
-		return nil, &fs.PathError{
+		return &fs.PathError{
 			Op:   op,
 			Path: name,
 			Err:  kerrors.WithMsg(err, "Failed filtering file"),
 		}
 	}
 	if !ok {
-		return nil, &fs.PathError{
+		return &fs.PathError{
 			Op:   op,
 			Path: name,
 			Err:  kerrors.WithKind(fs.ErrPermission, ErrFileMasked, "File does not exist"),
 		}
 	}
-	return info, nil
-}
-
-func (f *maskFS) checkFileLstat(op string, name string) (fs.FileInfo, error) {
-	if !fs.ValidPath(name) {
-		return nil, &fs.PathError{
-			Op:   op,
-			Path: name,
-			Err:  kerrors.WithMsg(fs.ErrInvalid, "Invalid path"),
-		}
-	}
-	info, err := Lstat(f.fsys, name)
-	if err != nil {
-		return nil, err
-	}
-	ok, err := f.filter(path.Join(f.dir, name), fs.FileInfoToDirEntry(info))
-	if err != nil {
-		return nil, &fs.PathError{
-			Op:   op,
-			Path: name,
-			Err:  kerrors.WithMsg(err, "Failed filtering file"),
-		}
-	}
-	if !ok {
-		return nil, &fs.PathError{
-			Op:   op,
-			Path: name,
-			Err:  kerrors.WithKind(fs.ErrPermission, ErrFileMasked, "File does not exist"),
-		}
-	}
-	return info, nil
+	return nil
 }
 
 func (f *maskFS) Open(name string) (fs.File, error) {
-	if _, err := f.checkFileStat("open", name); err != nil {
+	if err := f.checkFile("open", name); err != nil {
 		return nil, err
 	}
 	return f.fsys.Open(name)
 }
 
 func (f *maskFS) Stat(name string) (fs.FileInfo, error) {
-	return f.checkFileStat("stat", name)
+	if err := f.checkFile("stat", name); err != nil {
+		return nil, err
+	}
+	return fs.Stat(f.fsys, name)
 }
 
 func (f *maskFS) ReadDir(name string) ([]fs.DirEntry, error) {
-	if _, err := f.checkFileStat("readdir", name); err != nil {
+	if err := f.checkFile("readdir", name); err != nil {
 		return nil, err
 	}
 	entries, err := fs.ReadDir(f.fsys, name)
 	if err != nil {
 		return nil, err
 	}
+	basePath := path.Join(f.dir, name)
 	res := make([]fs.DirEntry, 0, len(entries))
 	for _, i := range entries {
-		entryPath := path.Join(f.dir, name, i.Name())
-		if ok, err := f.filter(entryPath, i); err != nil {
+		if ok, err := f.filter(path.Join(basePath, i.Name())); err != nil {
 			return nil, &fs.PathError{
 				Op:   "readdir",
-				Path: entryPath,
+				Path: name,
 				Err:  kerrors.WithMsg(err, "Failed filtering dir entry"),
 			}
 		} else if !ok {
@@ -127,7 +95,7 @@ func (f *maskFS) ReadDir(name string) ([]fs.DirEntry, error) {
 }
 
 func (f *maskFS) ReadFile(name string) ([]byte, error) {
-	if _, err := f.checkFileStat("readfile", name); err != nil {
+	if err := f.checkFile("readfile", name); err != nil {
 		return nil, err
 	}
 	return fs.ReadFile(f.fsys, name)
@@ -138,7 +106,7 @@ func (f *maskFS) Glob(pattern string) ([]string, error) {
 }
 
 func (f *maskFS) Sub(dir string) (fs.FS, error) {
-	if _, err := f.checkFileStat("sub", dir); err != nil {
+	if err := f.checkFile("sub", dir); err != nil {
 		return nil, err
 	}
 	fsys, err := fs.Sub(f.fsys, dir)
@@ -153,23 +121,22 @@ func (f *maskFS) Sub(dir string) (fs.FS, error) {
 }
 
 func (f *maskFS) Lstat(name string) (fs.FileInfo, error) {
-	return f.checkFileLstat("lstat", name)
+	if err := f.checkFile("lstat", name); err != nil {
+		return nil, err
+	}
+	return Lstat(f.fsys, name)
 }
 
 func (f *maskFS) ReadLink(name string) (string, error) {
-	if _, err := f.checkFileLstat("readlink", name); err != nil {
+	if err := f.checkFile("readlink", name); err != nil {
 		return "", err
 	}
 	return ReadLink(f.fsys, name)
 }
 
 func (f *maskFS) OpenFile(name string, flag int, mode fs.FileMode) (File, error) {
-	if _, err := f.checkFileStat("openfile", name); err != nil {
-		if errors.Is(err, ErrFileMasked) || !errors.Is(err, fs.ErrNotExist) {
-			// do not open files if masked and return if error is something other
-			// than not-exist
-			return nil, err
-		}
+	if err := f.checkFile("openfile", name); err != nil {
+		return nil, err
 	}
 	return OpenFile(f.fsys, name, flag, mode)
 }
