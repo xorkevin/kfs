@@ -47,7 +47,7 @@ type (
 //
 // If fsys does not implement LstatFS, then Lstat returns an error.
 func Lstat(fsys fs.FS, name string) (fs.FileInfo, error) {
-	rl, ok := fsys.(LstatFS)
+	f, ok := fsys.(LstatFS)
 	if !ok {
 		return nil, &fs.PathError{
 			Op:   "lstat",
@@ -55,7 +55,7 @@ func Lstat(fsys fs.FS, name string) (fs.FileInfo, error) {
 			Err:  kerrors.WithMsg(ErrNotImplemented, "Failed to lstat file"),
 		}
 	}
-	return rl.Lstat(name)
+	return f.Lstat(name)
 }
 
 type (
@@ -73,7 +73,7 @@ type (
 //
 // If fsys does not implement ReadLinkFS, then ReadLink returns an error.
 func ReadLink(fsys fs.FS, name string) (string, error) {
-	rl, ok := fsys.(ReadLinkFS)
+	f, ok := fsys.(ReadLinkFS)
 	if !ok {
 		return "", &fs.PathError{
 			Op:   "readlink",
@@ -81,7 +81,7 @@ func ReadLink(fsys fs.FS, name string) (string, error) {
 			Err:  kerrors.WithMsg(ErrNotImplemented, "Failed to read link"),
 		}
 	}
-	return rl.ReadLink(name)
+	return f.ReadLink(name)
 }
 
 type (
@@ -103,11 +103,11 @@ type (
 //
 // If fsys does not implement WriteFS, then OpenFile returns an error.
 func OpenFile(fsys fs.FS, name string, flag int, mode fs.FileMode) (File, error) {
-	rl, ok := fsys.(WriteFS)
+	f, ok := fsys.(WriteFS)
 	if !ok {
 		return nil, &fs.PathError{Op: "openfile", Path: name, Err: kerrors.WithMsg(ErrNotImplemented, "Failed to open file")}
 	}
-	return rl.OpenFile(name, flag, mode)
+	return f.OpenFile(name, flag, mode)
 }
 
 // WriteFile writes a file
@@ -128,6 +128,40 @@ func WriteFile(fsys fs.FS, name string, data []byte, perm fs.FileMode) (retErr e
 		return &fs.PathError{Op: "openfile", Path: name, Err: kerrors.WithMsg(err, "Failed writing to file")}
 	}
 	return nil
+}
+
+type (
+	// RemoveFS is a file system that may remove files
+	RemoveFS interface {
+		fs.FS
+		// Remove removes a file
+		Remove(name string) error
+	}
+
+	// RemoveAllFS is a file system that may remove files and their children
+	RemoveAllFS interface {
+		fs.FS
+		// RemoveAll removes a file and all children
+		RemoveAll(name string) error
+	}
+)
+
+// Remove removes a file
+func Remove(fsys fs.FS, name string) error {
+	f, ok := fsys.(RemoveFS)
+	if !ok {
+		return &fs.PathError{Op: "remove", Path: name, Err: kerrors.WithMsg(ErrNotImplemented, "Failed to remove file")}
+	}
+	return f.Remove(name)
+}
+
+// RemoveAll removes a file and all children
+func RemoveAll(fsys fs.FS, name string) error {
+	f, ok := fsys.(RemoveAllFS)
+	if !ok {
+		return &fs.PathError{Op: "removeall", Path: name, Err: kerrors.WithMsg(ErrNotImplemented, "Failed to remove file")}
+	}
+	return f.RemoveAll(name)
 }
 
 type (
@@ -228,7 +262,7 @@ func (f *osFS) ReadLink(name string) (string, error) {
 // with 0o777 (before umask)
 func (f *osFS) OpenFile(name string, flag int, mode fs.FileMode) (File, error) {
 	if !fs.ValidPath(name) {
-		return nil, &fs.PathError{Op: "openfile", Path: name, Err: fs.ErrInvalid}
+		return nil, &fs.PathError{Op: "openfile", Path: name, Err: kerrors.WithMsg(fs.ErrInvalid, "Invalid path")}
 	}
 	fullPath := f.fullFilePath(name)
 	if flag&os.O_CREATE != 0 {
@@ -243,6 +277,28 @@ func (f *osFS) OpenFile(name string, flag int, mode fs.FileMode) (File, error) {
 	return fi, nil
 }
 
+// Remove implements [RemoveFS]
+func (f *osFS) Remove(name string) error {
+	if !fs.ValidPath(name) {
+		return &fs.PathError{Op: "remove", Path: name, Err: kerrors.WithMsg(fs.ErrInvalid, "Invalid path")}
+	}
+	if err := os.Remove(f.fullFilePath(name)); err != nil {
+		return &fs.PathError{Op: "remove", Path: name, Err: kerrors.WithMsg(err, "Failed to remove file")}
+	}
+	return nil
+}
+
+// RemoveAll implements [RemoveFS]
+func (f *osFS) RemoveAll(name string) error {
+	if !fs.ValidPath(name) {
+		return &fs.PathError{Op: "removeall", Path: name, Err: kerrors.WithMsg(fs.ErrInvalid, "Invalid path")}
+	}
+	if err := os.RemoveAll(f.fullFilePath(name)); err != nil {
+		return &fs.PathError{Op: "removeall", Path: name, Err: kerrors.WithMsg(err, "Failed to remove file")}
+	}
+	return nil
+}
+
 type (
 	// FS implements all the file system operations
 	FS interface {
@@ -255,6 +311,8 @@ type (
 		LstatFS
 		ReadLinkFS
 		WriteFS
+		RemoveFS
+		RemoveAllFS
 	}
 )
 

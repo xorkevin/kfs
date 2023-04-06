@@ -63,11 +63,27 @@ func Test_MapFS(t *testing.T) {
 	}
 
 	{
+		// test lstat
 		info, err := kfs.Lstat(subFsys, "link.txt")
 		assert.NoError(err)
 		assert.True(info.Mode().Type()&fs.ModeSymlink != 0)
 		target, err := kfs.ReadLink(subFsys, "link.txt")
 		assert.NoError(err)
 		assert.Equal("subother/subother.txt", target)
+	}
+
+	{
+		// test remove
+		assert.NoError(TestFileWrite(subFsys, "subother/another.txt", []byte("another")))
+		assert.NoError(TestFileWrite(subFsys, "yetanother.txt", []byte("yetanother")))
+		assert.ErrorIs(kfs.Remove(subFsys, "subother/dne.txt"), fs.ErrNotExist)
+		assert.NoError(kfs.Remove(subFsys, "subother/subother.txt"))
+		assert.NoError(TestFileOpen(subFsys, "subother/another.txt", []byte("another")))
+		assert.NoError(kfs.RemoveAll(subFsys, "subother"))
+		_, err = fs.Stat(subFsys, "subother/another.txt")
+		assert.ErrorIs(err, fs.ErrNotExist)
+		_, err := fs.Stat(subFsys, "subother")
+		assert.ErrorIs(err, fs.ErrNotExist)
+		assert.NoError(TestFileOpen(subFsys, "yetanother.txt", []byte("yetanother")))
 	}
 }

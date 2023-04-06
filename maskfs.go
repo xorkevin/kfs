@@ -141,6 +141,20 @@ func (f *maskFS) OpenFile(name string, flag int, mode fs.FileMode) (File, error)
 	return OpenFile(f.fsys, name, flag, mode)
 }
 
+func (f *maskFS) Remove(name string) error {
+	if err := f.checkFile("remove", name); err != nil {
+		return err
+	}
+	return Remove(f.fsys, name)
+}
+
+func (f *maskFS) RemoveAll(name string) error {
+	if err := f.checkFile("removeall", name); err != nil {
+		return err
+	}
+	return RemoveAll(f.fsys, name)
+}
+
 // NewMaskFS creates a new [FS] that masks an fs based on a filter
 func NewMaskFS(fsys fs.FS, filter FileFilter) FS {
 	return &maskFS{

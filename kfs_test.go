@@ -96,4 +96,19 @@ func Test_FS(t *testing.T) {
 		_, err = fs.ReadFile(fsys, ".git")
 		assert.ErrorIs(err, kfs.ErrFileMasked)
 	}
+
+	{
+		// test remove
+		assert.NoError(kfstest.TestFileWrite(subFsys, "subother/another.txt", []byte("another")))
+		assert.NoError(kfstest.TestFileWrite(subFsys, "yetanother.txt", []byte("yetanother")))
+		assert.ErrorIs(kfs.Remove(subFsys, "subother/dne.txt"), fs.ErrNotExist)
+		assert.NoError(kfs.Remove(subFsys, "subother/subother.txt"))
+		assert.NoError(kfstest.TestFileOpen(subFsys, "subother/another.txt", []byte("another")))
+		assert.NoError(kfs.RemoveAll(subFsys, "subother"))
+		_, err = fs.Stat(subFsys, "subother/another.txt")
+		assert.ErrorIs(err, fs.ErrNotExist)
+		_, err := fs.Stat(subFsys, "subother")
+		assert.ErrorIs(err, fs.ErrNotExist)
+		assert.NoError(kfstest.TestFileOpen(subFsys, "yetanother.txt", []byte("yetanother")))
+	}
 }

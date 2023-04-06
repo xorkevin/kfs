@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"os"
 	"path"
+	"strings"
 	"testing/fstest"
 	"time"
 
@@ -234,6 +235,47 @@ func (m *MapFS) ReadLink(name string) (string, error) {
 	}
 }
 
+func (m *MapFS) Remove(name string) error {
+	if !fs.ValidPath(name) {
+		return &fs.PathError{
+			Op:   "remove",
+			Path: name,
+			Err:  kerrors.WithMsg(fs.ErrInvalid, "Invalid path"),
+		}
+	}
+
+	if _, ok := m.Fsys[name]; !ok {
+		return &fs.PathError{
+			Op:   "remove",
+			Path: name,
+			Err:  kerrors.WithMsg(fs.ErrNotExist, "File does not exist"),
+		}
+	}
+	delete(m.Fsys, name)
+	return nil
+}
+
+func (m *MapFS) RemoveAll(name string) error {
+	if !fs.ValidPath(name) {
+		return &fs.PathError{
+			Op:   "removeall",
+			Path: name,
+			Err:  kerrors.WithMsg(fs.ErrInvalid, "Invalid path"),
+		}
+	}
+
+	var names []string
+	for k := range m.Fsys {
+		if k == name || strings.HasPrefix(k, name+"/") {
+			names = append(names, k)
+		}
+	}
+	for _, i := range names {
+		delete(m.Fsys, i)
+	}
+	return nil
+}
+
 type (
 	subdirFS struct {
 		m    *MapFS
@@ -305,6 +347,28 @@ func (f *subdirFS) ReadLink(name string) (string, error) {
 		}
 	}
 	return f.m.ReadLink(path.Join(f.dir, name))
+}
+
+func (f *subdirFS) Remove(name string) error {
+	if !fs.ValidPath(name) {
+		return &fs.PathError{
+			Op:   "remove",
+			Path: name,
+			Err:  kerrors.WithMsg(fs.ErrInvalid, "Invalid path"),
+		}
+	}
+	return f.m.Remove(path.Join(f.dir, name))
+}
+
+func (f *subdirFS) RemoveAll(name string) error {
+	if !fs.ValidPath(name) {
+		return &fs.PathError{
+			Op:   "remove",
+			Path: name,
+			Err:  kerrors.WithMsg(fs.ErrInvalid, "Invalid path"),
+		}
+	}
+	return f.m.RemoveAll(path.Join(f.dir, name))
 }
 
 type (

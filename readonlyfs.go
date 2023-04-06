@@ -67,6 +67,22 @@ func (f *readOnlyFS) OpenFile(name string, flag int, mode fs.FileMode) (File, er
 	}
 }
 
+func (f *readOnlyFS) Remove(name string) error {
+	return &fs.PathError{
+		Op:   "remove",
+		Path: name,
+		Err:  kerrors.WithKind(fs.ErrInvalid, ErrReadOnly, "Read-only fs does not support writing"),
+	}
+}
+
+func (f *readOnlyFS) RemoveAll(name string) error {
+	return &fs.PathError{
+		Op:   "remove",
+		Path: name,
+		Err:  kerrors.WithKind(fs.ErrInvalid, ErrReadOnly, "Read-only fs does not support writing"),
+	}
+}
+
 // NewReadOnlyFS creates a new [FS] that is read-only
 func NewReadOnlyFS(fsys fs.FS) FS {
 	return &readOnlyFS{
