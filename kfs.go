@@ -323,3 +323,8 @@ func New(fsys fs.FS, dir string) FS {
 		dir:  dir,
 	}
 }
+
+// DirFS returns an [os.DirFS] wrapped by [FS]
+func DirFS(dir string) FS {
+	return New(os.DirFS(filepath.FromSlash(dir)), dir)
+}

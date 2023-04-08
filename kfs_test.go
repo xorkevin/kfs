@@ -48,7 +48,7 @@ func Test_FS(t *testing.T) {
 		assert.NoError(os.WriteFile(hiddenFilePath, []byte("hidden file data"), 0o644))
 	}
 
-	fsys := kfs.NewMaskFS(kfs.New(os.DirFS(tempDir), tempDir), testGitFileFilter)
+	fsys := kfs.NewMaskFS(kfs.DirFS(tempDir), testGitFileFilter)
 
 	assert.NoError(kfs.WriteFile(fsys, "foo.txt", []byte("hello, world"), 0o644))
 	assert.NoError(kfstest.TestFileWrite(fsys, "bar/foobar.txt", []byte("foo bar")))
