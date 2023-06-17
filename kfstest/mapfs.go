@@ -390,15 +390,36 @@ func (f *mapFile) Stat() (fs.FileInfo, error) {
 	return &f.info, nil
 }
 
-func (f *mapFile) Read(p []byte) (int, error) {
+func (f *mapFile) assertReader() error {
 	if f.r == nil {
-		return 0, &fs.PathError{
+		return &fs.PathError{
 			Op:   "read",
 			Path: f.path,
 			Err:  kerrors.WithMsg(fs.ErrInvalid, "File not open for reading"),
 		}
 	}
+	return nil
+}
+
+func (f *mapFile) Read(p []byte) (int, error) {
+	if err := f.assertReader(); err != nil {
+		return 0, nil
+	}
 	return f.r.Read(p)
+}
+
+func (f *mapFile) Seek(offset int64, whence int) (int64, error) {
+	if err := f.assertReader(); err != nil {
+		return 0, nil
+	}
+	return f.r.Seek(offset, whence)
+}
+
+func (f *mapFile) ReadAt(b []byte, offset int64) (int, error) {
+	if err := f.assertReader(); err != nil {
+		return 0, nil
+	}
+	return f.r.ReadAt(b, offset)
 }
 
 func (f *mapFile) Write(p []byte) (int, error) {

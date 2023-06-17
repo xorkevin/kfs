@@ -1,7 +1,9 @@
 package kfstest
 
 import (
+	"io"
 	"io/fs"
+	"os"
 	"testing"
 	"testing/fstest"
 	"time"
@@ -85,5 +87,13 @@ func Test_MapFS(t *testing.T) {
 		_, err := fs.Stat(subFsys, "subother")
 		assert.ErrorIs(err, fs.ErrNotExist)
 		assert.NoError(TestFileOpen(subFsys, "yetanother.txt", []byte("yetanother")))
+	}
+
+	{
+		f, err := fsys.OpenFile("foo.txt", os.O_RDONLY, 0o644)
+		assert.NoError(err)
+		_, ok := f.(io.Seeker)
+		assert.True(ok)
+		_, ok = f.(io.ReaderAt)
 	}
 }
