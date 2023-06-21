@@ -75,6 +75,17 @@ func Test_MapFS(t *testing.T) {
 	}
 
 	{
+		// test chtimes
+		info, err := fs.Stat(subFsys, "subother/subother.txt")
+		assert.NoError(err)
+		targetModTime := info.ModTime().Add(time.Second)
+		assert.NoError(kfs.Chtimes(subFsys, "subother/subother.txt", time.Time{}, targetModTime))
+		info, err = fs.Stat(subFsys, "subother/subother.txt")
+		assert.NoError(err)
+		assert.True(info.ModTime().Equal(targetModTime))
+	}
+
+	{
 		// test remove
 		assert.NoError(TestFileWrite(subFsys, "subother/another.txt", []byte("another")))
 		assert.NoError(TestFileWrite(subFsys, "yetanother.txt", []byte("yetanother")))

@@ -276,6 +276,29 @@ func (m *MapFS) RemoveAll(name string) error {
 	return nil
 }
 
+func (m *MapFS) Chtimes(name string, atime, mtime time.Time) error {
+	if !fs.ValidPath(name) {
+		return &fs.PathError{
+			Op:   "chtimes",
+			Path: name,
+			Err:  kerrors.WithMsg(fs.ErrInvalid, "Invalid path"),
+		}
+	}
+
+	f := m.Fsys[name]
+	if f == nil {
+		return &fs.PathError{
+			Op:   "chtimes",
+			Path: name,
+			Err:  kerrors.WithMsg(fs.ErrNotExist, "File does not exist"),
+		}
+	}
+	if mtime != (time.Time{}) {
+		f.ModTime = mtime
+	}
+	return nil
+}
+
 type (
 	subdirFS struct {
 		m    *MapFS
@@ -369,6 +392,17 @@ func (f *subdirFS) RemoveAll(name string) error {
 		}
 	}
 	return f.m.RemoveAll(path.Join(f.dir, name))
+}
+
+func (f *subdirFS) Chtimes(name string, atime, mtime time.Time) error {
+	if !fs.ValidPath(name) {
+		return &fs.PathError{
+			Op:   "chtimes",
+			Path: name,
+			Err:  kerrors.WithMsg(fs.ErrInvalid, "Invalid path"),
+		}
+	}
+	return f.m.Chtimes(path.Join(f.dir, name), atime, mtime)
 }
 
 type (

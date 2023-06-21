@@ -2,6 +2,7 @@ package kfs
 
 import (
 	"io/fs"
+	"time"
 
 	"xorkevin.dev/kerrors"
 )
@@ -77,7 +78,15 @@ func (f *readOnlyFS) Remove(name string) error {
 
 func (f *readOnlyFS) RemoveAll(name string) error {
 	return &fs.PathError{
-		Op:   "remove",
+		Op:   "removeall",
+		Path: name,
+		Err:  kerrors.WithKind(fs.ErrInvalid, ErrReadOnly, "Read-only fs does not support writing"),
+	}
+}
+
+func (f *readOnlyFS) Chtimes(name string, atime, mtime time.Time) error {
+	return &fs.PathError{
+		Op:   "atime",
 		Path: name,
 		Err:  kerrors.WithKind(fs.ErrInvalid, ErrReadOnly, "Read-only fs does not support writing"),
 	}

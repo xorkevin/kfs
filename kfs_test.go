@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"xorkevin.dev/kfs"
@@ -95,6 +96,17 @@ func Test_FS(t *testing.T) {
 		}
 		_, err = fs.ReadFile(fsys, ".git")
 		assert.ErrorIs(err, kfs.ErrFileMasked)
+	}
+
+	{
+		// test chtimes
+		info, err := fs.Stat(subFsys, "subother/subother.txt")
+		assert.NoError(err)
+		targetModTime := info.ModTime().Add(time.Second)
+		assert.NoError(kfs.Chtimes(subFsys, "subother/subother.txt", time.Time{}, targetModTime))
+		info, err = fs.Stat(subFsys, "subother/subother.txt")
+		assert.NoError(err)
+		assert.True(info.ModTime().Equal(targetModTime))
 	}
 
 	{

@@ -3,6 +3,7 @@ package kfs
 import (
 	"io/fs"
 	"path"
+	"time"
 
 	"xorkevin.dev/kerrors"
 )
@@ -153,6 +154,13 @@ func (f *maskFS) RemoveAll(name string) error {
 		return err
 	}
 	return RemoveAll(f.fsys, name)
+}
+
+func (f *maskFS) Chtimes(name string, atime, mtime time.Time) error {
+	if err := f.checkFile("chtimes", name); err != nil {
+		return err
+	}
+	return Chtimes(f.fsys, name, atime, mtime)
 }
 
 // NewMaskFS creates a new [FS] that masks an fs based on a filter

@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"time"
 
 	"xorkevin.dev/kerrors"
 )
@@ -165,6 +166,24 @@ func RemoveAll(fsys fs.FS, name string) error {
 }
 
 type (
+	// ChtimesFS is a file system that may change file time metadata
+	ChtimesFS interface {
+		fs.FS
+		// Remove removes a file
+		Chtimes(name string, atime, mtime time.Time) error
+	}
+)
+
+// Chtimes changes the time metadata of a file
+func Chtimes(fsys fs.FS, name string, atime, mtime time.Time) error {
+	f, ok := fsys.(ChtimesFS)
+	if !ok {
+		return &fs.PathError{Op: "chtimes", Path: name, Err: kerrors.WithMsg(ErrNotImplemented, "Failed to change file time metadata")}
+	}
+	return f.Chtimes(name, atime, mtime)
+}
+
+type (
 	osFS struct {
 		fsys fs.FS
 		dir  string
@@ -299,6 +318,17 @@ func (f *osFS) RemoveAll(name string) error {
 	return nil
 }
 
+// Chtimes implements [ChtimesFS]
+func (f *osFS) Chtimes(name string, atime, mtime time.Time) error {
+	if !fs.ValidPath(name) {
+		return &fs.PathError{Op: "chtimes", Path: name, Err: kerrors.WithMsg(fs.ErrInvalid, "Invalid path")}
+	}
+	if err := os.Chtimes(f.fullFilePath(name), atime, mtime); err != nil {
+		return &fs.PathError{Op: "chtimes", Path: name, Err: kerrors.WithMsg(err, "Failed to change file time metadata")}
+	}
+	return nil
+}
+
 type (
 	// FS implements all the file system operations
 	FS interface {
@@ -313,6 +343,7 @@ type (
 		WriteFS
 		RemoveFS
 		RemoveAllFS
+		ChtimesFS
 	}
 )
 
