@@ -8,7 +8,7 @@ import (
 	"io/fs"
 	"os"
 	"path"
-	"sort"
+	"slices"
 	"strings"
 
 	"xorkevin.dev/kerrors"
@@ -156,7 +156,7 @@ func TestFS(fsys fs.FS, files ...TestFSFile) error {
 	for i := range filesByDir {
 		dirs = append(dirs, i)
 	}
-	sort.Strings(dirs)
+	slices.Sort(dirs)
 	for _, i := range dirs {
 		subfsys, err := fs.Sub(fsys, i)
 		if err != nil {
