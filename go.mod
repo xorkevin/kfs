@@ -1,9 +1,9 @@
 module xorkevin.dev/kfs
 
-go 1.20
+go 1.22.0
 
 require (
-	github.com/stretchr/testify v1.8.4
+	github.com/stretchr/testify v1.9.0
 	xorkevin.dev/kerrors v0.1.5
 )
 
