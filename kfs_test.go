@@ -44,7 +44,7 @@ func Test_FS(t *testing.T) {
 	}
 
 	{
-		hiddenFilePath := filepath.Join(filepath.FromSlash(tempDir), filepath.FromSlash(".git/hidden.txt"))
+		hiddenFilePath := filepath.Join(tempDir, filepath.FromSlash(".git/hidden.txt"))
 		assert.NoError(os.MkdirAll(filepath.Dir(hiddenFilePath), 0o777))
 		assert.NoError(os.WriteFile(hiddenFilePath, []byte("hidden file data"), 0o644))
 	}
@@ -67,6 +67,10 @@ func Test_FS(t *testing.T) {
 			kfs.WriteFile(roFS, "shouldfailwriting", []byte("should fail writing"), 0o644),
 			kfs.ErrReadOnly,
 		)
+
+		fullpath, err := kfs.FullFilePath(roFS, "foo.txt")
+		assert.NoError(err)
+		assert.Equal(path.Join(filepath.ToSlash(tempDir), "foo.txt"), fullpath)
 	}
 
 	assert.NoError(kfstest.TestFileAppend(subFsys, "subother/subother.txt", []byte("more")))

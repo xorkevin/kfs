@@ -35,6 +35,10 @@ func Test_MapFS(t *testing.T) {
 		Fsys: fstest.MapFS{},
 	}
 
+	{
+		var _ kfs.FS = fsys
+	}
+
 	for _, i := range testFiles {
 		fsys.Fsys[i.Name] = &fstest.MapFile{
 			Data:    i.Data,

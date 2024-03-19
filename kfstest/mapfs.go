@@ -70,6 +70,17 @@ func (m *MapFS) Sub(dir string) (fs.FS, error) {
 	}, nil
 }
 
+func (m *MapFS) FullFilePath(name string) (string, error) {
+	if !fs.ValidPath(name) {
+		return "", &fs.PathError{
+			Op:   "fullfilepath",
+			Path: name,
+			Err:  kerrors.WithMsg(fs.ErrInvalid, "Invalid path"),
+		}
+	}
+	return name, nil
+}
+
 func (m *MapFS) OpenFile(name string, flag int, mode fs.FileMode) (kfs.File, error) {
 	if !fs.ValidPath(name) {
 		return nil, &fs.PathError{

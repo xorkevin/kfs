@@ -52,6 +52,10 @@ func (f *readOnlyFS) Sub(dir string) (fs.FS, error) {
 	return NewReadOnlyFS(fsys), nil
 }
 
+func (f *readOnlyFS) FullFilePath(name string) (string, error) {
+	return FullFilePath(f.fsys, name)
+}
+
 func (f *readOnlyFS) Lstat(name string) (fs.FileInfo, error) {
 	return Lstat(f.fsys, name)
 }

@@ -35,6 +35,34 @@ func (e errTargetOutsideFS) Error() string {
 
 type (
 	// LstatFS is a file system that can run lstat
+	FullFilePathFS interface {
+		fs.FS
+		// FullFilePath returns the underlying file path for a given file name
+		//
+		// This is intended to serve as an escape hatch for supporting operations
+		// that are not generic enough to be handled by a more generic fs
+		FullFilePath(name string) (string, error)
+	}
+)
+
+// FullFilePath returns the underlying file path of the named file
+//
+// If fsys does not implement FullFilePathFS, then FullFilePath returns an
+// error.
+func FullFilePath(fsys fs.FS, name string) (string, error) {
+	f, ok := fsys.(FullFilePathFS)
+	if !ok {
+		return "", &fs.PathError{
+			Op:   "fullfilepath",
+			Path: name,
+			Err:  kerrors.WithMsg(ErrNotImplemented, "Failed to get full file path"),
+		}
+	}
+	return f.FullFilePath(name)
+}
+
+type (
+	// LstatFS is a file system that can run lstat
 	LstatFS interface {
 		fs.FS
 		// Lstat returns the FileInfo of the named file without following symbolic
@@ -222,6 +250,17 @@ func (f *osFS) fullFilePath(name string) string {
 	return filepath.Join(filepath.FromSlash(f.dir), filepath.FromSlash(name))
 }
 
+func (f *osFS) FullFilePath(name string) (string, error) {
+	if !fs.ValidPath(name) {
+		return "", &fs.PathError{
+			Op:   "fullfilepath",
+			Path: name,
+			Err:  kerrors.WithMsg(fs.ErrInvalid, "Invalid path"),
+		}
+	}
+	return f.fullFilePath(name), nil
+}
+
 func (f *osFS) Lstat(name string) (fs.FileInfo, error) {
 	if !fs.ValidPath(name) {
 		return nil, &fs.PathError{
@@ -338,6 +377,7 @@ type (
 		fs.ReadFileFS
 		fs.GlobFS
 		fs.SubFS
+		FullFilePathFS
 		LstatFS
 		ReadLinkFS
 		WriteFS

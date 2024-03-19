@@ -121,6 +121,13 @@ func (f *maskFS) Sub(dir string) (fs.FS, error) {
 	}, nil
 }
 
+func (f *maskFS) FullFilePath(name string) (string, error) {
+	if err := f.checkFile("fullfilepath", name); err != nil {
+		return "", err
+	}
+	return FullFilePath(f.fsys, name)
+}
+
 func (f *maskFS) Lstat(name string) (fs.FileInfo, error) {
 	if err := f.checkFile("lstat", name); err != nil {
 		return nil, err
