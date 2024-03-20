@@ -258,7 +258,7 @@ func (f *osFS) FullFilePath(name string) (string, error) {
 			Err:  kerrors.WithMsg(fs.ErrInvalid, "Invalid path"),
 		}
 	}
-	return f.fullFilePath(name), nil
+	return path.Join(f.dir, name), nil
 }
 
 func (f *osFS) Lstat(name string) (fs.FileInfo, error) {
